@@ -20,13 +20,13 @@ package org.apache.commons.io.filefilter;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.function.BiFunction;
 
 import org.apache.commons.io.file.PathUtils;
 import org.junit.jupiter.api.AfterAll;
@@ -57,23 +57,15 @@ public class SymbolicLinkFileFilterTest {
     private static File missingFile;            // non-existent file
     private static SymbolicLinkFileFilter filter;
 
-    private static Path createRealSymbolicLink(Path link, Path target) {
-        try {
-            if (Files.exists(link)) {
-                Files.delete(link);
-            }
-            return Files.createSymbolicLink(link, target);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failure to create Symbolic Link", e);
-        }
-    }
+    private static Path createSymbolicLink(final Path link, final Path target) throws IOException {
+        Files.deleteIfExists(link);
 
-    private static Path createMockSymbolicLink(Path lnk, Path tgt) {
-        try {
-            return Files.createFile(lnk);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failure to create Symbolic Link", e);
+        // We can't create symbolic links on Windows without admin privileges,
+        // so iff that's our OS, we mock them.
+        if (IS_OS_WINDOWS) {
+            return Files.createFile(link);
         }
+        return Files.createSymbolicLink(link, target);
     }
 
     // Mock filter for testing on Windows.
@@ -95,16 +87,10 @@ public class SymbolicLinkFileFilterTest {
      */
     @BeforeAll
     static void testSetup() throws IOException {
-        final BiFunction<Path, Path, Path> symbolicLinkCreator;
 
-        // We can't create symbolic links on Windows without admin privileges,
-        // so iff that's our OS, we mock them.
-        final String os = System.getProperty("os.name");
-        if (os.toLowerCase().contains("windows")) {
-            symbolicLinkCreator = SymbolicLinkFileFilterTest::createMockSymbolicLink;
+        if (IS_OS_WINDOWS) {
             filter = createMockFilter();
         } else {
-            symbolicLinkCreator = SymbolicLinkFileFilterTest::createRealSymbolicLink;
             filter = SymbolicLinkFileFilter.INSTANCE;
         }
 
@@ -114,11 +100,11 @@ public class SymbolicLinkFileFilterTest {
         // parent directory
         final Path parentDirectoryPath = parentDirectoryFile.toPath();
         linkName = "SLFF_LinkTo" + testTargetFile.getName();
-        testLinkPath = symbolicLinkCreator.apply(parentDirectoryPath.resolve(linkName), testTargetPath);
+        testLinkPath = createSymbolicLink(parentDirectoryPath.resolve(linkName), testTargetPath);
         testLinkFile = testLinkPath.toFile();
         targetDirPath = Files.createDirectories(parentDirectoryPath.resolve(DIRECTORY_NAME));
         targetDirFile = targetDirPath.toFile();
-        testLinkDirPath = symbolicLinkCreator.apply(parentDirectoryPath.resolve(DIRECTORY_LINK_NAME), targetDirPath);
+        testLinkDirPath = createSymbolicLink(parentDirectoryPath.resolve(DIRECTORY_LINK_NAME), targetDirPath);
         testLinkDirFile = testLinkDirPath.toFile();
         missingFile = new File(parentDirectoryPath.toFile(), MISSING);
     }
