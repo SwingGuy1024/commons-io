@@ -197,4 +197,12 @@ public class SymbolicLinkFileFilterTest {
     public void testPathFilter_missingFile() {
         assertEquals(FileVisitResult.TERMINATE, filter.accept(missingFile.toPath(), null));
     }
+
+    @Test
+    public void testAlternateConstructor() {
+        final SymbolicLinkFileFilter alternateFilter
+            = new SymbolicLinkFileFilter(FileVisitResult.SKIP_SUBTREE, FileVisitResult.SKIP_SIBLINGS);
+        assertEquals(FileVisitResult.SKIP_SUBTREE, alternateFilter.accept(testLinkPath, null));
+        assertEquals(FileVisitResult.SKIP_SIBLINGS, alternateFilter.accept(testTargetPath, null));
+    }
 }
